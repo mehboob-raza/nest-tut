@@ -28,6 +28,7 @@ This NestJS application consists of multiple modules that showcase different asp
 - RESTful API design
 - In-memory data management
 - TypeScript integration
+- **Validation**: Request validation with class-validator and class-transformer
 - Testing with Jest
 - ESLint and Prettier configuration
 
@@ -119,11 +120,16 @@ The application will start on `http://localhost:3000` by default.
 - **Documentation**: Self-documenting API contracts
 - **Security**: Prevents over-posting attacks by defining exactly what data is accepted
 
-### Example DTO Implementation
+### Example DTO Implementation with Validation
 ```typescript
 // src/customer/dto/create-customer.dto.ts
+import { IsInt, IsString } from 'class-validator';
+
 export class CreateCustomerDto {
+    @IsString()
     name: string;
+
+    @IsInt()
     age: number;
 }
 ```
@@ -174,6 +180,125 @@ addCustomer(createCustomerDTO: CreateCustomerDto): Customer {
 - **Maintainability**: Easy to extend with validation or transformation logic
 - **Best Practices**: Follows NestJS recommended patterns for scalable applications
 
+## Validation with class-validator and class-transformer
+
+### What is class-validator?
+
+**class-validator** is a powerful validation library that allows you to validate objects using decorator-based validation rules. It works seamlessly with TypeScript and provides comprehensive validation capabilities.
+
+### Why use class-validator?
+
+- **Declarative Validation**: Use decorators to define validation rules directly on your DTO classes
+- **Type Safety**: Leverages TypeScript's type system for compile-time validation
+- **Comprehensive Rules**: Supports 30+ built-in validators (email, length, range, regex, etc.)
+- **Custom Validators**: Create your own validation rules when needed
+- **Error Messages**: Automatic or custom error messages for validation failures
+- **Security**: Prevents invalid data from entering your application
+
+### What is class-transformer?
+
+**class-transformer** is a library that helps transform plain JavaScript objects to class instances and vice versa. It works hand-in-hand with class-validator to provide complete data transformation capabilities.
+
+### Why use class-transformer?
+
+- **Object Transformation**: Convert plain objects to class instances
+- **Property Mapping**: Transform property names and types
+- **Serialization**: Convert class instances back to plain objects
+- **Nested Objects**: Handle complex nested object transformations
+- **Performance**: Efficient transformation with minimal overhead
+
+### How Validation Works in NestJS
+
+```typescript
+// 1. Configure ValidationPipe globally in main.ts
+import { ValidationPipe } from '@nestjs/common';
+
+app.useGlobalPipes(new ValidationPipe({
+  whitelist: true,           // Strip properties not in DTO
+  forbidNonWhitelisted: true // Throw error for extra properties
+}));
+```
+
+### ValidationPipe Options Explained
+
+- **`whitelist: true`**: Removes any properties that are not defined in the DTO
+- **`forbidNonWhitelisted: true`**: Throws an error if extra properties are sent
+- **`transform: true`**: Automatically transforms plain objects to class instances (requires class-transformer)
+
+### Common Validation Decorators
+
+```typescript
+import {
+  IsString, IsInt, IsEmail, IsOptional, Min, Max, Length
+} from 'class-validator';
+
+export class CreateUserDto {
+  @IsString()
+  @Length(2, 50)
+  name: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsInt()
+  @Min(18)
+  @Max(120)
+  age: number;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+}
+```
+
+### Validation Error Response
+
+When validation fails, NestJS returns a structured error response:
+
+```json
+{
+  "statusCode": 400,
+  "message": [
+    "name must be longer than or equal to 2 characters",
+    "age must be a number conforming to the specified constraints"
+  ],
+  "error": "Bad Request"
+}
+```
+
+### Advanced Validation Features
+
+- **Conditional Validation**: `@ValidateIf()` for conditional validation rules
+- **Nested Validation**: `@ValidateNested()` for validating nested objects
+- **Array Validation**: `@IsArray()` and `@ValidateNested({ each: true })` for arrays
+- **Custom Validation**: Create custom validators using `@Validate()` decorator
+
+### Integration with DTOs
+
+```typescript
+// DTO with comprehensive validation
+export class UpdateCustomerDto {
+  @IsOptional()
+  @IsString()
+  @Length(2, 50)
+  name?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(150)
+  age?: number;
+}
+```
+
+### Benefits in This Project
+
+- **Customer Module**: Demonstrates real-world validation with `@IsString()` and `@IsInt()`
+- **Security**: Prevents malicious or malformed data from being processed
+- **API Reliability**: Ensures consistent data structure across all endpoints
+- **Developer Experience**: Clear error messages help with debugging and API usage
+- **Maintainability**: Validation rules are co-located with data structures
+
 ## Sample API Usage
 
 ### Create a Student
@@ -195,11 +320,19 @@ curl -X PATCH http://localhost:3000/student/1 \
   -d '{"age": 26}'
 ```
 
-### Create a Customer (Using DTO)
+### Create a Customer (Using DTO with Validation)
 ```bash
 curl -X POST http://localhost:3000/customer \
   -H "Content-Type: application/json" \
   -d '{"name": "Jane Smith", "age": 30}'
+```
+
+### Test Validation (Invalid Data)
+```bash
+# This will return a 400 Bad Request with validation errors
+curl -X POST http://localhost:3000/customer \
+  -H "Content-Type: application/json" \
+  -d '{"name": "", "age": "not-a-number"}'
 ```
 
 ### Get All Customers
@@ -245,14 +378,14 @@ pnpm run format
 8. **CRUD Operations**: Complete REST API implementation
 9. **DTOs (Data Transfer Objects)**: Type-safe data validation and API contracts
 10. **TypeScript Interfaces**: Strong typing for data structures and better code maintainability
-11. **Testing**: Unit tests and e2e tests
-12. **TypeScript**: Type safety in NestJS applications
+11. **Validation**: Request validation with class-validator and class-transformer
+12. **Testing**: Unit tests and e2e tests
+13. **TypeScript**: Type safety in NestJS applications
 
 ## Next Steps for Advanced Learning
 
 - Add database integration (TypeORM, Prisma, Mongoose)
 - Implement authentication and authorization
-- Add validation with class-validator
 - Implement caching and rate limiting
 - Add logging and monitoring
 - Deploy to cloud platforms
@@ -263,6 +396,8 @@ pnpm run format
 
 - **NestJS**: Progressive Node.js framework
 - **TypeScript**: Typed JavaScript
+- **class-validator**: Powerful validation library with decorator-based rules
+- **class-transformer**: Object transformation and serialization library
 - **Jest**: Testing framework
 - **ESLint**: Code linting
 - **Prettier**: Code formatting
