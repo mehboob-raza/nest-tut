@@ -24,7 +24,7 @@ export class StudentService {
 
     createNewStudent(data: { name: string, age: number }) {
         const newStudent = {
-            id: this.students.length++,
+            id: this.students.length+1,
             ...data
         }
         this.students.push(newStudent)

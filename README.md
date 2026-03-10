@@ -10,6 +10,7 @@ This NestJS application consists of multiple modules that showcase different asp
 - **Users Module**: Demonstrates basic GET operations with parameterized routes
 - **Category Module**: Shows simple service implementation
 - **Student Module**: Comprehensive CRUD operations with full REST API implementation
+- **Customer Module**: Demonstrates DTOs (Data Transfer Objects) and TypeScript interfaces for type safety
 
 ## Features Demonstrated
 
@@ -20,6 +21,8 @@ This NestJS application consists of multiple modules that showcase different asp
 - HTTP methods (GET, POST, PUT, PATCH, DELETE)
 - Parameter binding (@Param, @Body)
 - Error handling with built-in exceptions
+- **DTOs (Data Transfer Objects)**: Type-safe data validation and transformation
+- **TypeScript Interfaces**: Strong typing for data structures
 
 ### Advanced Features
 - RESTful API design
@@ -41,6 +44,16 @@ src/
 │   ├── category.module.ts
 │   ├── category.service.ts
 │   └── category.controller.spec.ts
+├── customer/                  # Customer module with DTOs and interfaces
+│   ├── customer.controller.ts
+│   ├── customer.module.ts
+│   ├── customer.service.ts
+│   ├── customer.controller.spec.ts
+│   ├── customer.service.spec.ts
+│   ├── dto/
+│   │   └── create-customer.dto.ts
+│   └── interfaces/
+│       └── customer.interface.ts
 ├── student/                   # Student CRUD module
 │   ├── student.controller.ts
 │   ├── student.module.ts
@@ -89,16 +102,77 @@ The application will start on `http://localhost:3000` by default.
 ### Category API
 - `GET /category` - Get all categories
 
-### Student API (Full CRUD)
-- `GET /student` - Get all students
-- `GET /student/:id` - Get student by ID
-- `POST /student` - Create new student
+### Customer API (DTOs and Interfaces)
+- `GET /customer` - Get all customers
+- `POST /customer` - Create new customer
   - Body: `{ "name": "string", "age": number }`
-- `PUT /student/:id` - Update student (full update)
-  - Body: `{ "name": "string", "age": number }`
-- `PATCH /student/:id` - Update student (partial update)
-  - Body: Partial `{ "name"?: "string", "age"?: number }`
-- `DELETE /student/:id` - Delete student
+
+## DTOs (Data Transfer Objects) and Interfaces
+
+### What are DTOs?
+**Data Transfer Objects (DTOs)** are classes that define the structure of data being sent over the network. They act as a contract between the client and server, ensuring type safety and validation.
+
+### Why use DTOs?
+- **Type Safety**: Ensures the incoming data matches expected structure
+- **Validation**: Can be extended with validation decorators (e.g., class-validator)
+- **Transformation**: Can transform incoming data before processing
+- **Documentation**: Self-documenting API contracts
+- **Security**: Prevents over-posting attacks by defining exactly what data is accepted
+
+### Example DTO Implementation
+```typescript
+// src/customer/dto/create-customer.dto.ts
+export class CreateCustomerDto {
+    name: string;
+    age: number;
+}
+```
+
+### What are TypeScript Interfaces?
+**Interfaces** in TypeScript define the shape of objects, providing compile-time type checking and better IDE support.
+
+### Why use Interfaces?
+- **Type Safety**: Define exact structure of data objects
+- **IntelliSense**: Better autocomplete and error detection
+- **Documentation**: Self-documenting code contracts
+- **Refactoring**: Easier to refactor when types are defined
+- **Consistency**: Ensure consistent data structures across the application
+
+### Example Interface Implementation
+```typescript
+// src/customer/interfaces/customer.interface.ts
+export interface Customer {
+    id: number;
+    name: string;
+    age: number;
+}
+```
+
+### How DTOs and Interfaces Work Together
+
+```typescript
+// Controller using DTO for input validation
+@Post()
+createCustomer(@Body() createCustomerDTO: CreateCustomerDto) {
+    return this.customerService.addCustomer(createCustomerDTO);
+}
+
+// Service using Interface for return type
+addCustomer(createCustomerDTO: CreateCustomerDto): Customer {
+    const newCustomer: Customer = {
+        id: this.customers.length + 1,
+        ...createCustomerDTO
+    };
+    this.customers.push(newCustomer);
+    return newCustomer;
+}
+```
+
+### Benefits in This Project
+- **Customer Module**: Demonstrates proper separation of input DTOs and internal data interfaces
+- **Type Safety**: All customer operations are fully typed
+- **Maintainability**: Easy to extend with validation or transformation logic
+- **Best Practices**: Follows NestJS recommended patterns for scalable applications
 
 ## Sample API Usage
 
@@ -119,6 +193,18 @@ curl http://localhost:3000/student
 curl -X PATCH http://localhost:3000/student/1 \
   -H "Content-Type: application/json" \
   -d '{"age": 26}'
+```
+
+### Create a Customer (Using DTO)
+```bash
+curl -X POST http://localhost:3000/customer \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Jane Smith", "age": 30}'
+```
+
+### Get All Customers
+```bash
+curl http://localhost:3000/customer
 ```
 
 ## Testing
@@ -157,8 +243,10 @@ pnpm run format
 6. **Routing**: Path parameters, request body binding
 7. **Error Handling**: Built-in exceptions (NotFoundException)
 8. **CRUD Operations**: Complete REST API implementation
-9. **Testing**: Unit tests and e2e tests
-10. **TypeScript**: Type safety in NestJS applications
+9. **DTOs (Data Transfer Objects)**: Type-safe data validation and API contracts
+10. **TypeScript Interfaces**: Strong typing for data structures and better code maintainability
+11. **Testing**: Unit tests and e2e tests
+12. **TypeScript**: Type safety in NestJS applications
 
 ## Next Steps for Advanced Learning
 
