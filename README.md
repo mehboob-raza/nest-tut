@@ -29,6 +29,7 @@ This NestJS application consists of multiple modules that showcase different asp
 - In-memory data management
 - TypeScript integration
 - **Validation**: Request validation with class-validator and class-transformer
+- **Custom Pipes**: Transform and validate request data with custom pipes
 - Testing with Jest
 - ESLint and Prettier configuration
 
@@ -40,6 +41,11 @@ src/
 ├── app.module.ts              # Root module importing all feature modules
 ├── app.service.ts             # Root service
 ├── main.ts                    # Application bootstrap
+├── common/                    # Common utilities and pipes
+│   └── pipes/
+│       └── uppercase/
+│           ├── uppercase.pipe.ts
+│           └── uppercase.pipe.spec.ts
 ├── category/                  # Category feature module
 │   ├── category.controller.ts
 │   ├── category.module.ts
@@ -299,6 +305,114 @@ export class UpdateCustomerDto {
 - **Developer Experience**: Clear error messages help with debugging and API usage
 - **Maintainability**: Validation rules are co-located with data structures
 
+## Custom Pipes
+
+### What are Pipes?
+
+**Pipes** in NestJS are used to transform and validate request data before it reaches your route handlers. They implement the `PipeTransform` interface and can be applied at different levels: globally, on controllers, or on individual route parameters.
+
+### Why use Pipes?
+
+- **Data Transformation**: Convert incoming data to the desired format
+- **Data Validation**: Validate incoming data before processing
+- **Separation of Concerns**: Keep transformation logic separate from business logic
+- **Reusability**: Apply the same pipe across multiple routes
+- **Type Safety**: Ensure data matches expected types
+- **Consistency**: Maintain uniform data formatting across your application
+
+### Built-in Pipes
+
+NestJS provides several built-in pipes:
+- **ValidationPipe**: Validates request data against DTOs
+- **ParseIntPipe**: Converts string to integer
+- **ParseBoolPipe**: Converts string to boolean
+- **ParseFloatPipe**: Converts string to float
+- **DefaultValuePipe**: Provides default values for missing parameters
+
+### Custom Pipe Implementation: UppercasePipe
+
+This project includes a custom **UppercasePipe** that transforms string values to uppercase. It's located in `src/common/pipes/uppercase/`:
+
+```typescript
+// src/common/pipes/uppercase/uppercase.pipe.ts
+import { ArgumentMetadata, Injectable, PipeTransform } from '@nestjs/common';
+
+@Injectable()
+export class UppercasePipe implements PipeTransform {
+  transform(value: any, metadata: ArgumentMetadata) {
+    if(typeof value === 'string'){
+      return value.toUpperCase();
+    }
+    return value;
+  }
+}
+```
+
+### How to Use Custom Pipes
+
+**On a route parameter:**
+```typescript
+import { Get, Param } from '@nestjs/common';
+import { UppercasePipe } from '../common/pipes/uppercase/uppercase.pipe';
+
+@Get(':name')
+greet(@Param('name', UppercasePipe) name: string) {
+  return `Hello ${name}`;
+}
+// GET /greet/john → "Hello JOHN"
+```
+
+**On request body:**
+```typescript
+@Post()
+create(@Body(UppercasePipe) createDto: CreateDto) {
+  return this.service.create(createDto);
+}
+```
+
+**On query parameters:**
+```typescript
+@Get()
+search(@Query('q', UppercasePipe) query: string) {
+  return this.service.search(query);
+}
+```
+
+### Pipe Scope
+
+Pipes can be applied at multiple levels:
+
+```typescript
+// Method-level (affects specific route)
+@Get(':id')
+getById(@Param('id', ParseIntPipe) id: number) { }
+
+// Controller-level (affects all routes in controller)
+@Controller('users')
+@UsePipes(ValidationPipe)
+export class UsersController { }
+
+// Global level (affects all routes)
+app.useGlobalPipes(new ValidationPipe());
+```
+
+### Benefits of Custom Pipes in This Project
+
+- **Consistent Data Formatting**: Ensure all names and string inputs are in uppercase
+- **Reusable**: Apply across multiple routes without code duplication
+- **Testable**: Pipes can be unit tested in isolation
+- **Maintainable**: Centralized logic for specific transformations
+- **Type Safe**: Transform data while maintaining type safety
+- **Composable**: Can be combined with other pipes
+
+### Best Practices
+
+1. **Keep pipes focused**: Each pipe should do one thing
+2. **Handle edge cases**: Always check data types before transformation
+3. **Provide meaningful errors**: Throw appropriate exceptions if transformation fails
+4. **Document usage**: Clearly document which pipes are applied to which routes
+5. **Test thoroughly**: Unit test pipes with various input scenarios
+
 ## Sample API Usage
 
 ### Create a Student
@@ -379,8 +493,9 @@ pnpm run format
 9. **DTOs (Data Transfer Objects)**: Type-safe data validation and API contracts
 10. **TypeScript Interfaces**: Strong typing for data structures and better code maintainability
 11. **Validation**: Request validation with class-validator and class-transformer
-12. **Testing**: Unit tests and e2e tests
-13. **TypeScript**: Type safety in NestJS applications
+12. **Custom Pipes**: Data transformation and validation with custom pipes
+13. **Testing**: Unit tests and e2e tests
+14. **TypeScript**: Type safety in NestJS applications
 
 ## Next Steps for Advanced Learning
 

@@ -5,4 +5,6 @@ export class CategoryService {
     getCategories(){
         return ['Mobile','Laptop', 'PCs']
     }
+
+    
 }

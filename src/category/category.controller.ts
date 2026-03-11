@@ -1,5 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { CategoryService } from './category.service';
+import { UppercasePipe } from 'src/common/pipes/uppercase/uppercase.pipe';
 
 @Controller('category')
 export class CategoryController {
@@ -8,5 +9,10 @@ export class CategoryController {
     @Get()
     getAllCategories () {
             return this.categoryService.getCategories()
+    }
+
+    @Post()
+    postCategory(@Body('name', new UppercasePipe()) name:string){
+        return {message : `Recived Category Name In Uppercase: ${name} `}
     }
 }
