@@ -8,9 +8,11 @@ This NestJS application consists of multiple modules that showcase different asp
 
 - **App Module**: Basic NestJS setup with a hello world endpoint
 - **Users Module**: Demonstrates basic GET operations with parameterized routes
-- **Category Module**: Shows simple service implementation
-- **Student Module**: Comprehensive CRUD operations with full REST API implementation
+- **Category Module**: Shows simple service implementation with authentication guards
+- **Student Module**: Comprehensive CRUD operations with full REST API implementation and authentication guards
 - **Customer Module**: Demonstrates DTOs (Data Transfer Objects) and TypeScript interfaces for type safety
+- **Exception Module**: Shows exception handling with custom HTTP exception filters and parameter parsing pipes
+- **User-Roles Module**: Demonstrates role-based authorization with custom guards and decorators
 
 ## Features Demonstrated
 
@@ -30,6 +32,9 @@ This NestJS application consists of multiple modules that showcase different asp
 - TypeScript integration
 - **Validation**: Request validation with class-validator and class-transformer
 - **Custom Pipes**: Transform and validate request data with custom pipes
+- **Guards**: Authentication and authorization with custom guards
+- **Filters**: Exception handling with custom HTTP exception filters
+- **Decorators**: Custom decorators for role-based access control
 - Testing with Jest
 - ESLint and Prettier configuration
 
@@ -46,7 +51,7 @@ src/
 │       └── uppercase/
 │           ├── uppercase.pipe.ts
 │           └── uppercase.pipe.spec.ts
-├── category/                  # Category feature module
+├── category/                  # Category feature module with auth guards
 │   ├── category.controller.ts
 │   ├── category.module.ts
 │   ├── category.service.ts
@@ -61,12 +66,31 @@ src/
 │   │   └── create-customer.dto.ts
 │   └── interfaces/
 │       └── customer.interface.ts
-├── student/                   # Student CRUD module
+├── exception/                 # Exception handling module with filters
+│   ├── exception.controller.ts
+│   └── exception.controller.spec.ts
+├── filters/                   # Custom exception filters
+│   └── http-exception/
+│       ├── http-exception.filter.ts
+│       └── http-exception.filter.spec.ts
+├── guards/                    # Authentication and authorization guards
+│   ├── auth/
+│   │   ├── auth.guard.ts
+│   │   └── auth.guard.spec.ts
+│   └── roles/
+│       ├── roles.decorator.ts
+│       ├── roles.enums.ts
+│       ├── roles.guard.ts
+│       └── roles.guard.spec.ts
+├── student/                   # Student CRUD module with auth guards
 │   ├── student.controller.ts
 │   ├── student.module.ts
 │   ├── student.service.ts
 │   ├── student.controller.spec.ts
 │   └── student.service.spec.ts
+├── user-roles/                # User roles module with role-based access
+│   ├── user-roles.controller.ts
+│   └── user-roles.controller.spec.ts
 └── users/                     # Users module
     ├── users.controller.ts
     ├── users.module.ts
@@ -106,13 +130,28 @@ The application will start on `http://localhost:3000` by default.
 - `GET /users` - Get all users
 - `GET /users/:id` - Get user by ID
 
-### Category API
-- `GET /category` - Get all categories
+### Category API (with Authentication)
+- `GET /category` - Get all categories (requires Bearer token: `Bearer my-secret-token`)
+
+### Student API (with Authentication)
+- `GET /student` - Get all students (requires Bearer token: `Bearer my-secret-token`)
+- `GET /student/:id` - Get student by ID
+- `POST /student` - Create new student
+- `PUT /student/:id` - Update student completely
+- `PATCH /student/:id` - Update student partially
+- `DELETE /student/:id` - Delete student
 
 ### Customer API (DTOs and Interfaces)
 - `GET /customer` - Get all customers
 - `POST /customer` - Create new customer
   - Body: `{ "name": "string", "age": number }`
+
+### Exception API (Exception Handling and Pipes)
+- `GET /exception/hello/:id` - Demonstrates parameter parsing pipe and exception handling
+
+### User Roles API (Role-Based Authorization)
+- `GET /user-roles/admin-data` - Admin-only endpoint (requires `x-user-role: admin` header)
+- `GET /user-roles/user-data` - User endpoint (no role restriction)
 
 ## DTOs (Data Transfer Objects) and Interfaces
 
@@ -413,25 +452,226 @@ app.useGlobalPipes(new ValidationPipe());
 4. **Document usage**: Clearly document which pipes are applied to which routes
 5. **Test thoroughly**: Unit test pipes with various input scenarios
 
+## Guards: Authentication and Authorization
+
+### What are Guards?
+
+**Guards** in NestJS are used to determine whether a request should be handled by the route handler or not. They implement the `CanActivate` interface and can be used for authentication, authorization, rate limiting, and other cross-cutting concerns.
+
+### Why use Guards?
+
+- **Authentication**: Verify user identity before allowing access
+- **Authorization**: Check user permissions and roles
+- **Security**: Protect sensitive endpoints from unauthorized access
+- **Separation of Concerns**: Keep auth logic separate from business logic
+- **Reusability**: Apply the same guard across multiple routes
+- **Testability**: Guards can be unit tested in isolation
+
+### Types of Guards in This Project
+
+#### 1. AuthGuard (Authentication)
+The `AuthGuard` checks for a Bearer token in the Authorization header:
+
+```typescript
+// src/guards/auth/auth.guard.ts
+@Injectable()
+export class AuthGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    const authHeader = request.headers['authorization'];
+    return authHeader === 'Bearer my-secret-token';
+  }
+}
+```
+
+#### 2. RolesGuard (Authorization)
+The `RolesGuard` implements role-based access control using custom decorators:
+
+```typescript
+// src/guards/roles/roles.guard.ts
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<Role[]>(
+      ROLES_KEY, [context.getHandler(), context.getClass()]
+    );
+    if (!requiredRoles) return true;
+
+    const request = context.switchToHttp().getRequest();
+    const userRole = request.headers['x-user-role'] as Role;
+    return requiredRoles.includes(userRole);
+  }
+}
+```
+
+### Custom Role Decorator
+
+```typescript
+// src/guards/roles/roles.decorator.ts
+export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
+```
+
+### Role Enum
+
+```typescript
+// src/guards/roles/roles.enums.ts
+export enum Role {
+  Admin = 'admin',
+  User = 'user'
+}
+```
+
+### How to Use Guards
+
+**Method-level guard:**
+```typescript
+@Get()
+@UseGuards(AuthGuard)
+getProtectedData() {
+  return { message: 'This endpoint requires authentication' };
+}
+```
+
+**Controller-level guard:**
+```typescript
+@Controller('admin')
+@UseGuards(AuthGuard, RolesGuard)
+export class AdminController {
+  @Get()
+  @Roles(Role.Admin)
+  getAdminData() {
+    return { message: 'Admin only' };
+  }
+}
+```
+
+### Benefits in This Project
+
+- **Category Module**: Protected with `AuthGuard` for authentication
+- **Student Module**: All endpoints require authentication
+- **User-Roles Module**: Demonstrates role-based access with `RolesGuard`
+- **Security**: Prevents unauthorized access to sensitive endpoints
+- **Flexibility**: Easy to extend with additional guards for different auth strategies
+
+## Filters: Exception Handling
+
+### What are Filters?
+
+**Filters** in NestJS are used to catch exceptions thrown by your application and convert them into appropriate HTTP responses. They implement the `ExceptionFilter` interface and can be applied globally, on controllers, or on individual routes.
+
+### Why use Filters?
+
+- **Consistent Error Responses**: Standardize error response format across the application
+- **Logging**: Log exceptions for debugging and monitoring
+- **Transformation**: Convert exceptions to user-friendly error messages
+- **Cleanup**: Perform cleanup operations when exceptions occur
+- **Security**: Prevent sensitive information from leaking in error responses
+
+### Custom HttpExceptionFilter
+
+This project includes a custom `HttpExceptionFilter` that formats all exceptions consistently:
+
+```typescript
+// src/filters/http-exception/http-exception.filter.ts
+@Catch()
+export class HttpExceptionFilter implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request>();
+    const response = ctx.getResponse<Response>();
+    const status = exception.getStatus();
+
+    response.status(status).json({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      message: exception.message
+    });
+  }
+}
+```
+
+### How to Use Filters
+
+**Controller-level filter:**
+```typescript
+@Controller('exception')
+@UseFilters(HttpExceptionFilter)
+export class ExceptionController {
+  @Get('hello/:id')
+  getHello(@Param('id', ParseIntPipe) id: number) {
+    return { message: `ID is ${id}` };
+  }
+}
+```
+
+**Global filter (in main.ts):**
+```typescript
+app.useGlobalFilters(new HttpExceptionFilter());
+```
+
+### Exception Response Format
+
+All exceptions are formatted consistently:
+
+```json
+{
+  "statusCode": 400,
+  "timestamp": "2023-12-01T10:30:00.000Z",
+  "path": "/exception/hello/abc",
+  "message": "Validation failed (numeric string is expected)"
+}
+```
+
+### Benefits in This Project
+
+- **Exception Module**: Demonstrates exception handling with parameter parsing
+- **Consistent API**: All errors follow the same response structure
+- **Better UX**: User-friendly error messages
+- **Debugging**: Timestamp and path information for troubleshooting
+- **Security**: Prevents stack traces from being exposed to clients
+
 ## Sample API Usage
 
-### Create a Student
+### Authentication Headers
+For protected endpoints, include the Authorization header:
+```
+Authorization: Bearer my-secret-token
+```
+
+For role-based endpoints, include the user role header:
+```
+x-user-role: admin
+```
+
+### Create a Student (Protected)
 ```bash
 curl -X POST http://localhost:3000/student \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer my-secret-token" \
   -d '{"name": "John Doe", "age": 25}'
 ```
 
-### Get All Students
+### Get All Students (Protected)
 ```bash
-curl http://localhost:3000/student
+curl http://localhost:3000/student \
+  -H "Authorization: Bearer my-secret-token"
 ```
 
-### Update a Student
+### Update a Student (Protected)
 ```bash
 curl -X PATCH http://localhost:3000/student/1 \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer my-secret-token" \
   -d '{"age": 26}'
+```
+
+### Get All Categories (Protected)
+```bash
+curl http://localhost:3000/category \
+  -H "Authorization: Bearer my-secret-token"
 ```
 
 ### Create a Customer (Using DTO with Validation)
@@ -447,6 +687,25 @@ curl -X POST http://localhost:3000/customer \
 curl -X POST http://localhost:3000/customer \
   -H "Content-Type: application/json" \
   -d '{"name": "", "age": "not-a-number"}'
+```
+
+### Test Exception Handling (Invalid Parameter)
+```bash
+# This will trigger the HttpExceptionFilter due to invalid ID
+curl http://localhost:3000/exception/hello/abc
+```
+
+### Test Role-Based Access (Admin Only)
+```bash
+curl http://localhost:3000/user-roles/admin-data \
+  -H "x-user-role: admin"
+```
+
+### Test Role-Based Access (Insufficient Permissions)
+```bash
+# This will return 403 Forbidden
+curl http://localhost:3000/user-roles/admin-data \
+  -H "x-user-role: user"
 ```
 
 ### Get All Customers
@@ -494,13 +753,18 @@ pnpm run format
 10. **TypeScript Interfaces**: Strong typing for data structures and better code maintainability
 11. **Validation**: Request validation with class-validator and class-transformer
 12. **Custom Pipes**: Data transformation and validation with custom pipes
-13. **Testing**: Unit tests and e2e tests
-14. **TypeScript**: Type safety in NestJS applications
+13. **Guards**: Authentication and authorization with custom guards
+14. **Filters**: Exception handling with custom HTTP exception filters
+15. **Decorators**: Custom decorators for metadata and role-based access control
+16. **Enums**: TypeScript enums for role definitions
+17. **Testing**: Unit tests and e2e tests
+18. **TypeScript**: Type safety in NestJS applications
 
 ## Next Steps for Advanced Learning
 
 - Add database integration (TypeORM, Prisma, Mongoose)
-- Implement authentication and authorization
+- Implement JWT authentication and session management
+- Add more advanced authorization patterns (permissions, policies)
 - Implement caching and rate limiting
 - Add logging and monitoring
 - Deploy to cloud platforms
