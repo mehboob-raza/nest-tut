@@ -13,6 +13,6 @@ export class CategoryController {
 
     @Post()
     postCategory(@Body('name', new UppercasePipe()) name:string){
-        return {message : `Recived Category Name In Uppercase: ${name} `}
+        return this.categoryService.postCategoryInUpperCase(name)
     }
 }
