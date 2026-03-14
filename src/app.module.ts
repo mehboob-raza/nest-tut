@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersController } from './users/users.controller';
@@ -11,10 +11,21 @@ import { CustomerService } from './customer/customer.service';
 import { CustomerModule } from './customer/customer.module';
 import { UserRolesController } from './user-roles/user-roles.controller';
 import { ExceptionController } from './exception/exception.controller';
+import { LoggerMiddleware } from './middleware/logger/logger.middleware';
+import { DatabaseService } from './database/database.service';
+import { DatabaseController } from './database/database.controller';
+import { ConfigModule } from '@nestjs/config';
+import { EvController } from './ev/ev.controller';
+import { EvService } from './ev/ev.service';
+import { MongooseModule } from '@nestjs/mongoose';
 
 @Module({
-  imports: [ UsersModule, CategoryModule, StudentModule, CustomerModule],
-  controllers: [AppController, UsersController, CustomerController, UserRolesController, ExceptionController],
-  providers: [AppService, UsersService, CustomerService],
+  imports: [UsersModule, CategoryModule, StudentModule, CustomerModule, ConfigModule.forRoot(), MongooseModule.forRoot(process.env.DATABASE_URI!)],
+  controllers: [AppController, UsersController, CustomerController, UserRolesController, ExceptionController, DatabaseController, EvController],
+  providers: [AppService, UsersService, CustomerService, DatabaseService, EvService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*')
+  }
+}

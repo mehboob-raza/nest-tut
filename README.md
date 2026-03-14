@@ -1,6 +1,6 @@
 # NestJS Advanced Learning Tutorial Kit
 
-This is a comprehensive tutorial kit designed for learning advanced concepts in NestJS. The project demonstrates various NestJS features including modules, controllers, services, CRUD operations, error handling, and testing.
+This is a comprehensive tutorial kit designed for learning advanced concepts in NestJS. The project demonstrates various NestJS features including modules, controllers, services, CRUD operations, error handling, database integration with MongoDB, and testing.
 
 ## Project Overview
 
@@ -11,6 +11,8 @@ This NestJS application consists of multiple modules that showcase different asp
 - **Category Module**: Shows simple service implementation with authentication guards
 - **Student Module**: Comprehensive CRUD operations with full REST API implementation and authentication guards
 - **Customer Module**: Demonstrates DTOs (Data Transfer Objects) and TypeScript interfaces for type safety
+- **Database Module**: Database connection management and status monitoring
+- **EV Module**: Environment variable handling with ConfigService
 - **Exception Module**: Shows exception handling with custom HTTP exception filters and parameter parsing pipes
 - **User-Roles Module**: Demonstrates role-based authorization with custom guards and decorators
 
@@ -29,6 +31,9 @@ This NestJS application consists of multiple modules that showcase different asp
 ### Advanced Features
 - RESTful API design
 - In-memory data management
+- **Database Integration**: MongoDB connection with Mongoose ODM
+- **Environment Configuration**: ConfigService for environment variables
+- **Middleware**: Custom logging middleware for request tracking
 - TypeScript integration
 - **Validation**: Request validation with class-validator and class-transformer
 - **Custom Pipes**: Transform and validate request data with custom pipes
@@ -66,6 +71,16 @@ src/
 │   │   └── create-customer.dto.ts
 │   └── interfaces/
 │       └── customer.interface.ts
+├── database/                  # Database connection management
+│   ├── database.controller.spec.ts
+│   ├── database.controller.ts
+│   ├── database.service.spec.ts
+│   └── database.service.ts
+├── ev/                        # Environment variables module
+│   ├── ev.controller.spec.ts
+│   ├── ev.controller.ts
+│   ├── ev.service.spec.ts
+│   └── ev.service.ts
 ├── exception/                 # Exception handling module with filters
 │   ├── exception.controller.ts
 │   └── exception.controller.spec.ts
@@ -82,6 +97,10 @@ src/
 │       ├── roles.enums.ts
 │       ├── roles.guard.ts
 │       └── roles.guard.spec.ts
+├── middleware/                # Custom middleware
+│   └── logger/
+│       ├── logger.middleware.spec.ts
+│       └── logger.middleware.ts
 ├── student/                   # Student CRUD module with auth guards
 │   ├── student.controller.ts
 │   ├── student.module.ts
@@ -104,6 +123,11 @@ src/
 ```bash
 # Install dependencies
 pnpm install
+
+# Set up environment variables
+# Create a .env file in the root directory with your database URI
+echo "DATABASE_URI=your_mongodb_connection_string" > .env
+echo "SECRET_KEY=your_secret_key" >> .env
 ```
 
 ## Running the Application
@@ -145,6 +169,12 @@ The application will start on `http://localhost:3000` by default.
 - `GET /customer` - Get all customers
 - `POST /customer` - Create new customer
   - Body: `{ "name": "string", "age": number }`
+
+### Database API
+- `GET /database` - Get database connection status
+
+### EV API (Environment Variables)
+- `GET /ev` - Get database URL from environment variables
 
 ### Exception API (Exception Handling and Pipes)
 - `GET /exception/hello/:id` - Demonstrates parameter parsing pipe and exception handling
@@ -343,6 +373,79 @@ export class UpdateCustomerDto {
 - **API Reliability**: Ensures consistent data structure across all endpoints
 - **Developer Experience**: Clear error messages help with debugging and API usage
 - **Maintainability**: Validation rules are co-located with data structures
+
+## Database Integration with MongoDB and Mongoose
+
+### What is Mongoose?
+
+**Mongoose** is an Object Data Modeling (ODM) library for MongoDB and Node.js. It provides a schema-based solution to model your application data and includes built-in type casting, validation, query building, and business logic hooks.
+
+### Why use Mongoose with NestJS?
+
+- **Schema Definition**: Define data structures with TypeScript interfaces
+- **Type Safety**: Full TypeScript support for database operations
+- **Validation**: Built-in and custom validation at the schema level
+- **Middleware**: Pre and post hooks for data processing
+- **Query Building**: Elegant API for database queries
+- **Connection Management**: Automatic connection handling and pooling
+
+### Mongoose Integration in NestJS
+
+```typescript
+// In app.module.ts
+import { MongooseModule } from '@nestjs/mongoose';
+
+@Module({
+  imports: [
+    MongooseModule.forRoot(process.env.DATABASE_URI!),
+  ],
+})
+export class AppModule {}
+```
+
+### Environment Configuration
+
+The application uses `@nestjs/config` for environment variable management:
+
+```typescript
+// .env file
+DATABASE_URI=mongodb+srv://username:password@cluster.mongodb.net/
+SECRET_KEY=your-secret-key
+```
+
+### Database Connection Status
+
+The Database module provides connection monitoring:
+
+```typescript
+// src/database/database.service.ts
+@Injectable()
+export class DatabaseService {
+  private isConnected = false;
+
+  onModuleInit() {
+    this.isConnected = true;
+    console.log('Database connected');
+  }
+
+  onApplicationShutdown(signal: string) {
+    this.isConnected = false;
+    console.log(`Database disconnected due to app shutdown ${signal}`);
+  }
+
+  getStatus() {
+    return this.isConnected ? 'Connected' : 'Disconnected';
+  }
+}
+```
+
+### Benefits in This Project
+
+- **Database Module**: Demonstrates connection lifecycle management
+- **EV Module**: Shows secure environment variable handling
+- **Scalability**: Ready for real database operations
+- **Best Practices**: Proper connection management and error handling
+- **Type Safety**: TypeScript integration with MongoDB operations
 
 ## Custom Pipes
 
@@ -633,6 +736,76 @@ All exceptions are formatted consistently:
 - **Debugging**: Timestamp and path information for troubleshooting
 - **Security**: Prevents stack traces from being exposed to clients
 
+## Middleware: Request Logging
+
+### What is Middleware?
+
+**Middleware** in NestJS are functions that have access to the request and response objects, and can execute code, modify the request/response, or end the request-response cycle. They are executed in the order they are defined.
+
+### Why use Middleware?
+
+- **Logging**: Track incoming requests for debugging and monitoring
+- **Authentication**: Validate requests before they reach controllers
+- **CORS**: Handle cross-origin resource sharing
+- **Security**: Add security headers and validate requests
+- **Performance**: Implement caching or rate limiting
+- **Transformation**: Modify request/response data
+
+### Custom Logger Middleware
+
+This project includes a custom `LoggerMiddleware` that logs all incoming requests:
+
+```typescript
+// src/middleware/logger/logger.middleware.ts
+@Injectable()
+export class LoggerMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction) {
+    console.log(`[${req.method}] - [${req.originalUrl}]`);
+    next();
+  }
+}
+```
+
+### How to Apply Middleware
+
+**Global middleware (in app.module.ts):**
+```typescript
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}
+```
+
+**Route-specific middleware:**
+```typescript
+consumer.apply(LoggerMiddleware).forRoutes('users', 'posts');
+```
+
+**Controller-specific middleware:**
+```typescript
+consumer.apply(LoggerMiddleware).forRoutes(UsersController);
+```
+
+### Middleware Execution Order
+
+1. Global middleware
+2. Module middleware
+3. Route guards
+4. Route interceptors
+5. Route pipes
+6. Route controller/handler
+7. Route interceptors (response)
+8. Route filters (exceptions)
+
+### Benefits in This Project
+
+- **Request Tracking**: All requests are logged with method and URL
+- **Debugging**: Easy to trace application flow
+- **Monitoring**: Basis for implementing advanced logging
+- **Security**: Can be extended for request validation
+- **Performance**: Foundation for implementing caching strategies
+
 ## Sample API Usage
 
 ### Authentication Headers
@@ -695,6 +868,16 @@ curl -X POST http://localhost:3000/customer \
 curl http://localhost:3000/exception/hello/abc
 ```
 
+### Get Database Connection Status
+```bash
+curl http://localhost:3000/database
+```
+
+### Get Database URL from Environment
+```bash
+curl http://localhost:3000/ev
+```
+
 ### Test Role-Based Access (Admin Only)
 ```bash
 curl http://localhost:3000/user-roles/admin-data \
@@ -748,23 +931,26 @@ pnpm run format
 5. **Dependency Injection**: NestJS DI container
 6. **Routing**: Path parameters, request body binding
 7. **Error Handling**: Built-in exceptions (NotFoundException)
-8. **CRUD Operations**: Complete REST API implementation
-9. **DTOs (Data Transfer Objects)**: Type-safe data validation and API contracts
-10. **TypeScript Interfaces**: Strong typing for data structures and better code maintainability
-11. **Validation**: Request validation with class-validator and class-transformer
-12. **Custom Pipes**: Data transformation and validation with custom pipes
-13. **Guards**: Authentication and authorization with custom guards
-14. **Filters**: Exception handling with custom HTTP exception filters
-15. **Decorators**: Custom decorators for metadata and role-based access control
-16. **Enums**: TypeScript enums for role definitions
-17. **Testing**: Unit tests and e2e tests
-18. **TypeScript**: Type safety in NestJS applications
+8. **Database Integration**: MongoDB with Mongoose ODM
+9. **Environment Configuration**: ConfigService for environment variables
+10. **Middleware**: Custom middleware for request processing
+11. **CRUD Operations**: Complete REST API implementation
+12. **DTOs (Data Transfer Objects)**: Type-safe data validation and API contracts
+13. **TypeScript Interfaces**: Strong typing for data structures and better code maintainability
+14. **Validation**: Request validation with class-validator and class-transformer
+15. **Custom Pipes**: Data transformation and validation with custom pipes
+16. **Guards**: Authentication and authorization with custom guards
+17. **Filters**: Exception handling with custom HTTP exception filters
+18. **Decorators**: Custom decorators for metadata and role-based access control
+19. **Enums**: TypeScript enums for role definitions
+20. **Testing**: Unit tests and e2e tests
+21. **TypeScript**: Type safety in NestJS applications
 
 ## Next Steps for Advanced Learning
 
-- Add database integration (TypeORM, Prisma, Mongoose)
 - Implement JWT authentication and session management
 - Add more advanced authorization patterns (permissions, policies)
+- Create MongoDB schemas and models for data persistence
 - Implement caching and rate limiting
 - Add logging and monitoring
 - Deploy to cloud platforms
@@ -775,6 +961,9 @@ pnpm run format
 
 - **NestJS**: Progressive Node.js framework
 - **TypeScript**: Typed JavaScript
+- **MongoDB**: NoSQL database
+- **Mongoose**: MongoDB object modeling for Node.js
+- **@nestjs/config**: Configuration module for environment variables
 - **class-validator**: Powerful validation library with decorator-based rules
 - **class-transformer**: Object transformation and serialization library
 - **Jest**: Testing framework
