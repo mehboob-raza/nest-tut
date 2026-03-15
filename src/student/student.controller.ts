@@ -1,40 +1,37 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { AuthGuard } from 'src/guards/auth/auth.guard';
+import { Student } from './student.schema';
+import { CreateStudentDto } from './dto/create-student.dto';
+import { UpdateStudentDto } from './dto/update-student.dto';
 
 @Controller('student')
 export class StudentController {
     constructor(private readonly studentServices: StudentService) { }
 
+    @Post()
+    async createStudent(@Body() data: CreateStudentDto) {
+        return this.studentServices.createStudent(data);
+    }
+
     @Get()
     @UseGuards(AuthGuard)
-
-    getAll() {
-        return this.studentServices.getAllStudents()
+    async getAllStudents() {
+        return this.studentServices.getAllStudents();
     }
 
     @Get(':id')
-    getOneStudent(@Param('id') id: string) {
-        return this.studentServices.getStudentsById(Number(id))
-    }
-
-    @Post()
-    create(@Body() body: { name: string, age: number }) {
-        return this.studentServices.createNewStudent(body)
+    async getStudentById(@Param('id') id: string) {
+        return this.studentServices.getStudentById(id);
     }
 
     @Put(':id')
-    updateFull(@Param('id') id: string, @Body() body: { name: string, age: number }) {
-        return this.studentServices.updateUserData(Number(id), body)
-    }
-
-    @Patch(':id')
-    updatePartial(@Param('id') id: string, @Body() body: Partial<{ name: string, age: number }>) {
-        return this.studentServices.updatePartialData(Number(id), body)
+    async updateStudent(@Param('id') id: string, @Body() data: UpdateStudentDto) {
+        return this.studentServices.updateStudent(id, data);
     }
 
     @Delete(':id')
-    deleteStudnt(@Param('id') id: string) {
-        return this.studentServices.removeStudent(Number(id))
+    async deleteStudent(@Param('id') id: string) {
+        return this.studentServices.deleteStudent(id);
     }
 }

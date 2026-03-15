@@ -9,7 +9,7 @@ This NestJS application consists of multiple modules that showcase different asp
 - **App Module**: Basic NestJS setup with a hello world endpoint
 - **Users Module**: Demonstrates basic GET operations with parameterized routes
 - **Category Module**: Shows simple service implementation with authentication guards
-- **Student Module**: Comprehensive CRUD operations with full REST API implementation and authentication guards
+- **Student Module**: Comprehensive CRUD operations with full REST API implementation, MongoDB integration using Mongoose, DTOs for validation, and authentication guards
 - **Customer Module**: Demonstrates DTOs (Data Transfer Objects) and TypeScript interfaces for type safety
 - **Database Module**: Database connection management and status monitoring
 - **EV Module**: Environment variable handling with ConfigService
@@ -101,12 +101,16 @@ src/
 │   └── logger/
 │       ├── logger.middleware.spec.ts
 │       └── logger.middleware.ts
-├── student/                   # Student CRUD module with auth guards
+├── student/                   # Student CRUD module with MongoDB, DTOs, and auth guards
 │   ├── student.controller.ts
 │   ├── student.module.ts
+│   ├── student.schema.ts
 │   ├── student.service.ts
 │   ├── student.controller.spec.ts
-│   └── student.service.spec.ts
+│   ├── student.service.spec.ts
+│   └── dto/
+│       ├── create-student.dto.ts
+│       └── update-student.dto.ts
 ├── user-roles/                # User roles module with role-based access
 │   ├── user-roles.controller.ts
 │   └── user-roles.controller.spec.ts
@@ -161,8 +165,9 @@ The application will start on `http://localhost:3000` by default.
 - `GET /student` - Get all students (requires Bearer token: `Bearer my-secret-token`)
 - `GET /student/:id` - Get student by ID
 - `POST /student` - Create new student
-- `PUT /student/:id` - Update student completely
-- `PATCH /student/:id` - Update student partially
+  - Body: `{ "name": "string", "age": number, "email": "string (optional)" }`
+- `PUT /student/:id` - Update student
+  - Body: `{ "name": "string (optional)", "age": number (optional)", "email": "string (optional)" }`
 - `DELETE /student/:id` - Delete student
 
 ### Customer API (DTOs and Interfaces)

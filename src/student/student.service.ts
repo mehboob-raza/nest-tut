@@ -1,55 +1,47 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Student, StudentDocument } from './student.schema';
+import { Model } from 'mongoose';
+import { CreateStudentDto } from './dto/create-student.dto';
+import { UpdateStudentDto } from './dto/update-student.dto';
 
 @Injectable()
 export class StudentService {
-    private students = [
-        { id: 1, name: 'Ali', age: 23 },
-        { id: 2, name: 'Hassan Ali', age: 28 },
-        { id: 3, name: 'Saif Ali', age: 22 },
-        { id: 4, name: 'Ali Raza', age: 29 },
-        { id: 5, name: 'Ali Hamza', age: 26 },
-    ]
 
-    getAllStudents() {
-        return this.students
+    constructor(
+        @InjectModel(Student.name) private studentModel: Model<StudentDocument>
+    ) { } //inject model 
+
+    async createStudent(data: CreateStudentDto): Promise<Student> {
+        const createdStudent = new this.studentModel(data);
+        return await createdStudent.save();
     }
 
-    getStudentsById(id: number) {
-        const student = this.students.find((s) => s.id === id)
+    async getAllStudents(): Promise<Student[]> {
+        return await this.studentModel.find().exec();
+    }
+
+    async getStudentById(id: string): Promise<Student> {
+        const student = await this.studentModel.findById(id).exec();
         if (!student) {
-            throw new NotFoundException('Not found student')
+            throw new NotFoundException('Student not found');
         }
-        return student
+        return student;
     }
 
-    createNewStudent(data: { name: string, age: number }) {
-        const newStudent = {
-            id: this.students.length+1,
-            ...data
+    async updateStudent(id: string, data: UpdateStudentDto): Promise<Student> {
+        const updatedStudent = await this.studentModel.findByIdAndUpdate(id, data, { new: true }).exec();
+        if (!updatedStudent) {
+            throw new NotFoundException('Student not found');
         }
-        this.students.push(newStudent)
-        return newStudent
+        return updatedStudent;
     }
 
-    updateUserData(id: number, data: { name: string, age: number }) {
-        const index = this.students.findIndex((s) => s.id === id)
-        if (index === -1) throw new NotFoundException('Student Not FOund')
-
-        this.students[index] = { id, ...data }
-        return this.students[index]
-    }
-
-    updatePartialData(id: number, data: Partial<{ name: string, age: number }>) {
-        const stundent = this.getStudentsById(id)
-        Object.assign(stundent, data)
-        return stundent
-    }
-
-    removeStudent(id: number) {
-        const index = this.students.findIndex((s) => s.id === id)
-        if (index === -1) throw new NotFoundException('Student Not FOund')
-
-        const deleted = this.students.splice(index, 1)
-        return { message: 'Student Deleted', student: deleted[0] }
+    async deleteStudent(id: string): Promise<{ message: string }> {
+        const result = await this.studentModel.findByIdAndDelete(id).exec();
+        if (!result) {
+            throw new NotFoundException('Student not found');
+        }
+        return { message: 'Student deleted successfully' };
     }
 }
